@@ -12,11 +12,11 @@
 :root{
   --bg:#f7f9fc; --card:#fff; --text:#0f172a; --muted:#475569; --line:#e2e8f0;
   --goodbg:#dcfce7; --good:#166534; --badbg:#fee2e2; --bad:#7f1d1d;
-  --warnbg:#fff7ed; --warn:#9a3412;
+  --warnbg:#fff7ed; --warn:#9a3412; --infobg:#dbeafe; --info:#1d4ed8;
   --blue:#1d4ed8; --blue2:#2563eb;
 }
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto;background:var(--bg);margin:0;padding:18px;color:var(--text)}
-.wrap{max-width:1100px;margin:0 auto}
+.wrap{max-width:1200px;margin:0 auto}
 
 .topnav{
   position:sticky; top:0; z-index:50;
@@ -47,6 +47,8 @@ h1{margin:6px 0 6px;font-size:34px}
 }
 
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.col{display:flex;flex-direction:column;gap:6px}
+.flex1{flex:1}
 
 .btn{
   padding:10px 12px;border-radius:12px;border:1px solid var(--line);
@@ -54,26 +56,72 @@ h1{margin:6px 0 6px;font-size:34px}
 }
 .btnPrimary{background:var(--blue);border-color:var(--blue);color:#fff}
 .btnDanger{background:#7f1d1d;border-color:#7f1d1d;color:#fff}
+.btnDark{background:#0f172a;border-color:#0f172a;color:#fff}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 
 input.big{
   font-size:24px;padding:12px 14px;width:100%;
   border-radius:14px;border:1px solid #cbd5e1;box-sizing:border-box
 }
-input.med{
+input.med, select.med{
   font-size:18px;padding:10px 12px;border-radius:12px;
-  border:1px solid #cbd5e1;width:320px;max-width:100%;
-  box-sizing:border-box
+  border:1px solid #cbd5e1;width:220px;max-width:100%;
+  box-sizing:border-box;background:#fff
+}
+input.sm, select.sm{
+  font-size:15px;padding:8px 10px;border-radius:10px;
+  border:1px solid #cbd5e1;width:140px;max-width:100%;
+  box-sizing:border-box;background:#fff
+}
+input.code{
+  font-size:20px;padding:10px 12px;border-radius:12px;
+  border:1px solid #cbd5e1;width:260px;max-width:100%;
+  box-sizing:border-box;font-family:ui-monospace, monospace
 }
 
+.badge{
+  display:inline-block;padding:6px 10px;border-radius:999px;
+  font-weight:900;font-size:12px;border:1px solid var(--line);background:#f8fafc
+}
+.badge.ok{background:var(--goodbg);border-color:#86efac;color:var(--good)}
+.badge.bad{background:var(--badbg);border-color:#fecaca;color:var(--bad)}
+.badge.warn{background:var(--warnbg);border-color:#fed7aa;color:var(--warn)}
+.badge.info{background:var(--infobg);border-color:#93c5fd;color:var(--info)}
+
+.modeSwitch{
+  display:inline-flex;background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:4px;gap:4px
+}
+.modeSwitch button{
+  padding:8px 12px;border:none;border-radius:8px;background:transparent;font-weight:900;cursor:pointer
+}
+.modeSwitch button.active{background:#1d4ed8;color:#fff}
+
+.kpi{
+  min-width:260px;flex:1;
+  background:#f8fafc;border:1px solid var(--line);border-radius:16px;padding:16px
+}
+.kpi .label{font-size:12px;color:var(--muted);font-weight:900;letter-spacing:.04em}
+.kpi .value{font-size:34px;font-weight:1000;line-height:1.1;margin-top:4px}
+.kpi .subv{font-size:13px;color:var(--muted);margin-top:6px}
+
 table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left}
+th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
 tbody tr:nth-child(even){background:#f9fafb}
 .mono{font-family:ui-monospace, monospace}
 
 .cellInput{
   width:100%;padding:8px 10px;border-radius:10px;
-  border:1px solid #cbd5e1;font-weight:900;
+  border:1px solid #cbd5e1;font-weight:900;box-sizing:border-box
+}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sep{height:1px;background:var(--line);margin:14px 0}
+
+.hide{display:none!important}
+.right{margin-left:auto}
+.metaGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.mutedBox{
+  background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px
 }
 </style>
 </head>
@@ -97,175 +145,717 @@ tbody tr:nth-child(even){background:#f9fafb}
 
 <h1>Bin Assignment</h1>
 <p class="sub">
-Scan items and assign warehouse bins.  
+Assign warehouse bins in <b>Bulk Edit</b> or <b>Quick Add</b>.  
 This page only builds CSV exports — it does NOT modify Shopify until upload.
 </p>
 
 <div class="card">
+  <div class="toolbar">
+    <div class="modeSwitch">
+      <button id="modeBulkBtn" class="active" type="button" onclick="setMode('bulk')">Bulk Edit</button>
+      <button id="modeQuickBtn" type="button" onclick="setMode('quick')">Quick Add</button>
+    </div>
 
-<div class="row">
-  <div style="flex:1;min-width:260px">
-    <div class="small">Scan item (barcode or SKU)</div>
-    <input id="assignScan" class="big" placeholder="Scan item + Enter" autofocus />
+    <span id="csvStatus" class="badge warn">CSV: Loading…</span>
+    <span id="statusBadge" class="badge info">Ready</span>
+    <span id="draftStatus" class="badge">Draft idle</span>
+
+    <div class="right row">
+      <button class="btn" type="button" onclick="undoLast()">Undo Last</button>
+      <button class="btn btnDanger" type="button" onclick="clearAssignments()">Clear</button>
+    </div>
   </div>
 
-  <div style="min-width:280px">
-    <div class="small">Bin value (optional)</div>
-    <input id="assignBin" class="med mono" placeholder="Scan/type bin + Enter" />
+  <div class="sep"></div>
+
+  <div class="metaGrid">
+    <div class="col">
+      <div class="small">Zone</div>
+      <input id="zoneInput" class="sm mono" placeholder="A" maxlength="3">
+    </div>
+
+    <div class="col">
+      <div class="small">Starting Bay</div>
+      <input id="bayInput" class="sm mono" placeholder="03">
+    </div>
+
+    <div class="col bulkOnly">
+      <div class="small">Current Shelf</div>
+      <input id="shelfDisplay" class="sm mono" readonly>
+    </div>
+
+    <div class="col bulkOnly">
+      <div class="small">Current Bin #</div>
+      <input id="binNumDisplay" class="sm mono" readonly>
+    </div>
+
+    <div class="col quickOnly hide">
+      <div class="small">WH Bin (exact)</div>
+      <input id="quickBinInput" class="code" placeholder="A-03-02-05">
+    </div>
+
+    <div class="col quickOnly hide" style="justify-content:flex-end">
+      <label class="row" style="margin-top:24px;gap:8px">
+        <input id="keepSameBin" type="checkbox" checked>
+        <span class="small">Keep same bin for next scan</span>
+      </label>
+    </div>
   </div>
 
-  <button class="btn btnPrimary" onclick="addAssignment()">Add</button>
-  <button class="btn btnDanger" onclick="clearAssignments()">Clear</button>
+  <div class="sep"></div>
+
+  <div class="row">
+    <div class="kpi">
+      <div class="label">CURRENT BIN</div>
+      <div class="value mono" id="currentBinDisplay">—</div>
+      <div class="subv" id="currentBinSub">Enter Zone + Starting Bay to begin</div>
+    </div>
+
+    <div class="kpi">
+      <div class="label">LAST SCAN</div>
+      <div class="value" id="lastScanTitle" style="font-size:24px">—</div>
+      <div class="subv mono" id="lastScanBin">Assigned: —</div>
+    </div>
+
+    <div class="kpi">
+      <div class="label">SESSION INFO</div>
+      <div class="subv mono" id="sessionInfo" style="font-size:15px;color:#0f172a">
+        Mode: BULK<br>
+        Zone: —<br>
+        Bay: — | Shelf: — | Bin: —<br>
+        Assignments: 0
+      </div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="row">
+    <div style="flex:1;min-width:320px">
+      <div class="small">Scan item (barcode or SKU) or scan control barcode</div>
+      <input id="assignScan" class="big" placeholder="Scan item + Enter" autofocus />
+    </div>
+
+    <div class="col bulkOnly" style="justify-content:flex-end">
+      <div class="small">Control codes</div>
+      <div class="row">
+        <span class="badge warn mono">LW-END-SHELF</span>
+        <span class="badge info mono">LW-END-BAY</span>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="small">&nbsp;</div>
+      <button class="btn btnPrimary" type="button" onclick="addAssignment()">Add</button>
+    </div>
+  </div>
 </div>
 
-<div style="margin-top:14px;overflow:auto;max-height:45vh">
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Variant ID</th>
-<th>Barcode</th>
-<th>SKU</th>
-<th>Title</th>
-<th>WH Bin</th>
-<th></th>
-</tr>
-</thead>
-<tbody id="assignTable"></tbody>
-</table>
+<div class="card">
+  <div class="row" style="justify-content:space-between">
+    <div class="small">Assignments</div>
+    <div class="small" id="rowCount">0 rows</div>
+  </div>
+
+  <div style="margin-top:12px;overflow:auto;max-height:50vh">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Variant ID</th>
+          <th>Barcode</th>
+          <th>SKU</th>
+          <th>Title</th>
+          <th>Zone</th>
+          <th>Bay</th>
+          <th>Shelf</th>
+          <th>Bin Pos</th>
+          <th>WH Bin</th>
+          <th>Mode</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="assignTable"></tbody>
+    </table>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="row">
+    <button class="btn btnDark" onclick="downloadShopifyCSV()">Shopify Bin Upload CSV</button>
+    <button class="btn" onclick="downloadWorkingCSV()">Working CSV</button>
+    <button class="btn" onclick="downloadLabelCSV()">Label Print CSV</button>
+  </div>
 </div>
 
-<div class="row" style="margin-top:14px">
-<button class="btn" onclick="downloadShopifyCSV()">Shopify Bin Upload CSV</button>
-<button class="btn" onclick="downloadLabelCSV()">Label Print CSV</button>
-<button class="btn" onclick="downloadRawCSV()">Raw Assignment CSV</button>
-</div>
-
-</div>
 </div>
 
 <script>
 const CSV_URL = '../pickle-data.csv';
+
 const COL_BARCODE = 'Variant Barcode';
 const COL_SKU = 'Variant SKU';
 const COL_TITLE = 'Title';
 const COL_BIN = 'Variant Metafield: custom.wh_bin [single_line_text_field]';
 
 const VARIANT_ID_CANDIDATES = [
-'Variant ID','Variant Id','variant_id','variant id'
+  'Variant ID','Variant Id','variant_id','variant id'
 ];
 
+const END_SHELF_CODE = 'LW-END-SHELF';
+const END_BAY_CODE = 'LW-END-BAY';
+
+const STATE_KEY = 'livewell:binassign:v2';
+
 let rows = [];
+let dataLoaded = false;
+
+let mode = 'bulk';
 let assignments = [];
+let history = [];
+let nextRowId = 1;
 
-function getVariantId(row){
-for(const k of VARIANT_ID_CANDIDATES){
-if(row[k]) return row[k];
+let currentZone = '';
+let currentBay = 1;
+let currentShelf = 1;
+let currentBinNum = 1;
+
+function pad2(v){
+  return String(v).replace(/\D/g,'').padStart(2,'0').slice(-2) || '01';
 }
-return '';
+function n(v){
+  const x = Number(String(v ?? '').trim());
+  return Number.isFinite(x) ? Math.floor(x) : 0;
 }
-
-async function loadCSV(){
-const res = await fetch(CSV_URL + '?v=' + Date.now());
-const text = await res.text();
-const lines = text.split('\n');
-const headers = lines[0].split(',');
-rows = lines.slice(1).map(l=>{
-const cols = l.split(',');
-let obj = {};
-headers.forEach((h,i)=>obj[h.trim()] = (cols[i]||'').trim());
-return obj;
-});
-}
-loadCSV();
-
-function findRow(q){
-return rows.find(r =>
-r[COL_BARCODE]===q || r[COL_SKU]===q
-);
-}
-
-function addAssignment(){
-const scan = document.getElementById('assignScan').value.trim();
-const bin = document.getElementById('assignBin').value.trim();
-if(!scan) return;
-
-const row = findRow(scan);
-if(!row) return alert("Not found");
-
-assignments.push({
-variantId: getVariantId(row),
-barcode: row[COL_BARCODE],
-sku: row[COL_SKU],
-title: row[COL_TITLE],
-bin: bin
-});
-
-render();
-document.getElementById('assignScan').value='';
-document.getElementById('assignBin').value='';
-document.getElementById('assignScan').focus();
-}
-
-function render(){
-const tbody = document.getElementById('assignTable');
-tbody.innerHTML='';
-assignments.forEach((a,i)=>{
-tbody.innerHTML += `
-<tr>
-<td>${i+1}</td>
-<td class="mono">${a.variantId}</td>
-<td class="mono">${a.barcode}</td>
-<td class="mono">${a.sku}</td>
-<td>${a.title}</td>
-<td><input class="cellInput" value="${a.bin||''}" onchange="assignments[${i}].bin=this.value"></td>
-<td><button onclick="assignments.splice(${i},1);render()">Delete</button></td>
-</tr>`;
-});
-}
-
-function clearAssignments(){
-if(!confirm("Clear list?")) return;
-assignments=[];
-render();
-}
-
 function csvEscape(s){
-return `"${(s||'').replace(/"/g,'""')}"`;
+  s = String(s ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
 }
-
-function downloadFile(name,text){
-const blob = new Blob([text],{type:'text/csv'});
-const url = URL.createObjectURL(blob);
-const a=document.createElement('a');
-a.href=url;a.download=name;a.click();
-URL.revokeObjectURL(url);
+function setCsvStatus(text, kind='warn'){
+  const el = document.getElementById('csvStatus');
+  el.textContent = text;
+  el.className = 'badge ' + kind;
 }
+function setStatus(text, kind='info'){
+  const el = document.getElementById('statusBadge');
+  el.textContent = text;
+  el.className = 'badge ' + kind;
+}
+function setDraftStatus(text){
+  const el = document.getElementById('draftStatus');
+  el.textContent = text;
+}
+function getVariantId(row){
+  for(const k of VARIANT_ID_CANDIDATES){
+    if(row[k]){
+      const v = String(row[k]).trim();
+      if(v) return v;
+    }
+  }
+  return '';
+}
+function parseCSV(text){
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
+  const out = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\n'){
+        row.push(field); field = '';
+        if(row.length > 1 || (row.length === 1 && row[0].trim() !== '')) out.push(row);
+        row = [];
+      } else field += c;
+    }
+  }
+  row.push(field);
+  if(row.length > 1 || (row.length === 1 && row[0].trim() !== '')) out.push(row);
+
+  if(!out.length) return { headers:[], records:[] };
+
+  const headers = out[0].map(h => String(h ?? '').trim());
+  const records = out.slice(1).map(r=>{
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = String(r[i] ?? '').trim());
+    return obj;
+  });
+  return { headers, records };
+}
+async function loadCSV(){
+  try{
+    setCsvStatus('CSV: Loading…','warn');
+    const res = await fetch(CSV_URL + '?v=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const parsed = parseCSV(text);
+    rows = parsed.records || [];
+    dataLoaded = true;
+    setCsvStatus(`CSV: Loaded (${rows.length} rows)`,'ok');
+    restoreState();
+  }catch(e){
+    rows = [];
+    dataLoaded = false;
+    setCsvStatus('CSV: Failed','bad');
+    alert('Could not load pickle-data.csv');
+  }
+}
+function findRow(q){
+  const needle = String(q || '').trim();
+  if(!needle) return null;
+  return rows.find(r =>
+    String(r[COL_BARCODE] || '').trim() === needle ||
+    String(r[COL_SKU] || '').trim() === needle
+  ) || null;
+}
+function buildWhBin(zone, bay, shelf, binNum){
+  return `${String(zone).trim().toUpperCase()}-${pad2(bay)}-${pad2(shelf)}-${pad2(binNum)}`;
+}
+function currentBinString(){
+  if(mode === 'quick'){
+    return String(document.getElementById('quickBinInput').value || '').trim() || '—';
+  }
+  if(!currentZone) return '—';
+  return buildWhBin(currentZone, currentBay, currentShelf, currentBinNum);
+}
+function snapshotCounters(){
+  return {
+    zone: currentZone,
+    bay: currentBay,
+    shelf: currentShelf,
+    binNum: currentBinNum
+  };
+}
+function restoreCounters(s){
+  currentZone = s.zone || '';
+  currentBay = Number(s.bay || 1);
+  currentShelf = Number(s.shelf || 1);
+  currentBinNum = Number(s.binNum || 1);
+}
+function syncInputsFromState(){
+  document.getElementById('zoneInput').value = currentZone || '';
+  document.getElementById('bayInput').value = pad2(currentBay);
+}
+function syncStateFromInputs(){
+  currentZone = String(document.getElementById('zoneInput').value || '').trim().toUpperCase();
+  currentBay = Math.max(1, n(document.getElementById('bayInput').value || 1) || 1);
+  if(currentShelf < 1) currentShelf = 1;
+  if(currentBinNum < 1) currentBinNum = 1;
+}
+function setMode(nextMode){
+  mode = nextMode === 'quick' ? 'quick' : 'bulk';
+
+  document.getElementById('modeBulkBtn').classList.toggle('active', mode === 'bulk');
+  document.getElementById('modeQuickBtn').classList.toggle('active', mode === 'quick');
+
+  document.querySelectorAll('.bulkOnly').forEach(el => el.classList.toggle('hide', mode !== 'bulk'));
+  document.querySelectorAll('.quickOnly').forEach(el => el.classList.toggle('hide', mode !== 'quick'));
+
+  updateDisplays();
+  saveState();
+}
+function updateDisplays(){
+  syncStateFromInputs();
+
+  document.getElementById('shelfDisplay').value = pad2(currentShelf);
+  document.getElementById('binNumDisplay').value = pad2(currentBinNum);
+  document.getElementById('currentBinDisplay').textContent = currentBinString();
+
+  if(mode === 'bulk'){
+    document.getElementById('currentBinSub').textContent =
+      currentZone ? 'Next assignment in Bulk Edit mode' : 'Enter Zone + Starting Bay to begin';
+  } else {
+    document.getElementById('currentBinSub').textContent =
+      'Exact manual bin for Quick Add mode';
+  }
+
+  const last = assignments[assignments.length - 1];
+  document.getElementById('lastScanTitle').textContent = last ? (last.title || last.sku || last.barcode || 'Last row') : '—';
+  document.getElementById('lastScanBin').textContent = 'Assigned: ' + (last ? (last.bin || '—') : '—');
+
+  document.getElementById('sessionInfo').innerHTML =
+    `Mode: ${mode.toUpperCase()}<br>` +
+    `Zone: ${currentZone || '—'}<br>` +
+    `Bay: ${currentZone ? pad2(currentBay) : '—'} | Shelf: ${mode === 'bulk' ? pad2(currentShelf) : '—'} | Bin: ${mode === 'bulk' ? pad2(currentBinNum) : '—'}<br>` +
+    `Assignments: ${assignments.length}`;
+
+  document.getElementById('rowCount').textContent = `${assignments.length} row${assignments.length === 1 ? '' : 's'}`;
+}
+function addAssignment(){
+  if(!dataLoaded){
+    alert('CSV is still loading.');
+    return;
+  }
+
+  syncStateFromInputs();
+
+  const scanEl = document.getElementById('assignScan');
+  const quickBinEl = document.getElementById('quickBinInput');
+  const scan = String(scanEl.value || '').trim();
+
+  if(!scan) return;
+
+  if(mode === 'bulk'){
+    if(!currentZone){
+      alert('Enter Zone first.');
+      scanEl.focus();
+      return;
+    }
+    if(!document.getElementById('bayInput').value.trim()){
+      alert('Enter Starting Bay first.');
+      document.getElementById('bayInput').focus();
+      return;
+    }
+
+    const upper = scan.toUpperCase();
+    if(upper === END_SHELF_CODE){
+      const before = snapshotCounters();
+      currentShelf += 1;
+      currentBinNum = 1;
+      const after = snapshotCounters();
+
+      history.push({ type:'control', control:'end_shelf', before, after });
+      setStatus('END OF SHELF recorded','warn');
+      scanEl.value = '';
+      updateDisplays();
+      render();
+      saveState();
+      scanEl.focus();
+      return;
+    }
+
+    if(upper === END_BAY_CODE){
+      const before = snapshotCounters();
+      currentBay += 1;
+      currentShelf = 1;
+      currentBinNum = 1;
+      const after = snapshotCounters();
+
+      history.push({ type:'control', control:'end_bay', before, after });
+      setStatus('END OF BAY recorded','info');
+      scanEl.value = '';
+      syncInputsFromState();
+      updateDisplays();
+      render();
+      saveState();
+      scanEl.focus();
+      return;
+    }
+
+    const row = findRow(scan);
+    if(!row){
+      setStatus('Not found: ' + scan,'bad');
+      return;
+    }
+
+    const before = snapshotCounters();
+    const assignedBin = buildWhBin(currentZone, currentBay, currentShelf, currentBinNum);
+
+    const entry = {
+      id: nextRowId++,
+      mode: 'bulk',
+      variantId: getVariantId(row),
+      barcode: String(row[COL_BARCODE] || '').trim(),
+      sku: String(row[COL_SKU] || '').trim(),
+      title: String(row[COL_TITLE] || '').trim(),
+      zone: currentZone,
+      bay: pad2(currentBay),
+      shelf: pad2(currentShelf),
+      binPos: pad2(currentBinNum),
+      bin: assignedBin
+    };
+
+    assignments.push(entry);
+    currentBinNum += 1;
+    const after = snapshotCounters();
+
+    history.push({ type:'product', entryId: entry.id, before, after });
+    setStatus('Assigned to ' + assignedBin,'ok');
+    scanEl.value = '';
+    updateDisplays();
+    render();
+    saveState();
+    scanEl.focus();
+    return;
+  }
+
+  // QUICK ADD
+  const exactBin = String(quickBinEl.value || '').trim().toUpperCase();
+  if(!exactBin){
+    alert('Enter WH Bin first in Quick Add mode.');
+    quickBinEl.focus();
+    return;
+  }
+
+  const row = findRow(scan);
+  if(!row){
+    setStatus('Not found: ' + scan,'bad');
+    return;
+  }
+
+  const parts = exactBin.split('-');
+  const qZone = parts[0] || '';
+  const qBay = parts[1] || '';
+  const qShelf = parts[2] || '';
+  const qBinPos = parts[3] || '';
+
+  const entry = {
+    id: nextRowId++,
+    mode: 'quick',
+    variantId: getVariantId(row),
+    barcode: String(row[COL_BARCODE] || '').trim(),
+    sku: String(row[COL_SKU] || '').trim(),
+    title: String(row[COL_TITLE] || '').trim(),
+    zone: qZone,
+    bay: qBay,
+    shelf: qShelf,
+    binPos: qBinPos,
+    bin: exactBin
+  };
+
+  assignments.push(entry);
+  history.push({ type:'product_quick', entryId: entry.id });
+  setStatus('Assigned to ' + exactBin,'ok');
+
+  scanEl.value = '';
+  if(!document.getElementById('keepSameBin').checked){
+    quickBinEl.value = '';
+  }
+
+  updateDisplays();
+  render();
+  saveState();
+  scanEl.focus();
+}
+function undoLast(){
+  if(!history.length){
+    setStatus('Nothing to undo','warn');
+    return;
+  }
+
+  const last = history.pop();
+
+  if(last.type === 'product' || last.type === 'product_quick'){
+    const idx = assignments.findIndex(a => a.id === last.entryId);
+    if(idx >= 0) assignments.splice(idx, 1);
+    if(last.before) restoreCounters(last.before);
+  } else if(last.type === 'control'){
+    restoreCounters(last.before);
+    syncInputsFromState();
+  }
+
+  setStatus('Last action undone','warn');
+  updateDisplays();
+  render();
+  saveState();
+  document.getElementById('assignScan').focus();
+}
+function deleteAssignment(id){
+  const idx = assignments.findIndex(a => a.id === id);
+  if(idx < 0) return;
+  assignments.splice(idx, 1);
+  setStatus('Row deleted','warn');
+  render();
+  saveState();
+}
+function render(){
+  const tbody = document.getElementById('assignTable');
+  tbody.innerHTML = '';
+
+  assignments.forEach((a, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td class="mono">${a.variantId || ''}</td>
+      <td class="mono">${a.barcode || ''}</td>
+      <td class="mono">${a.sku || ''}</td>
+      <td>${a.title || ''}</td>
+      <td class="mono">${a.zone || ''}</td>
+      <td class="mono">${a.bay || ''}</td>
+      <td class="mono">${a.shelf || ''}</td>
+      <td class="mono">${a.binPos || ''}</td>
+      <td><input class="cellInput mono" value="${escapeHtml(a.bin || '')}" onchange="updateBin(${a.id}, this.value)"></td>
+      <td class="mono">${a.mode || ''}</td>
+      <td><button class="btn" type="button" onclick="deleteAssignment(${a.id})">Delete</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  updateDisplays();
+}
+function updateBin(id, value){
+  const a = assignments.find(x => x.id === id);
+  if(!a) return;
+  a.bin = String(value || '').trim().toUpperCase();
+
+  const parts = a.bin.split('-');
+  a.zone = parts[0] || '';
+  a.bay = parts[1] || '';
+  a.shelf = parts[2] || '';
+  a.binPos = parts[3] || '';
+
+  saveState();
+  updateDisplays();
+}
+function clearAssignments(){
+  if(!confirm('Clear assignment list and reset history?')) return;
+  assignments = [];
+  history = [];
+  nextRowId = 1;
+  currentShelf = 1;
+  currentBinNum = 1;
+  setStatus('Cleared','warn');
+  render();
+  saveState();
+}
+function escapeHtml(s){
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function stamp(){
+  const d = new Date();
+  const p = x => String(x).padStart(2,'0');
+  return {
+    date: `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`,
+    time: `${p(d.getHours())}${p(d.getMinutes())}`
+  };
+}
+function sessionBaseName(){
+  const s = stamp();
+  const z = currentZone || 'ZONE';
+  const b = pad2(currentBay || 1);
+  return `BIN_ASSIGN_${z}_BAY${b}_${s.date}_${s.time}`;
+}
+function downloadFile(name, text){
+  const blob = new Blob([text], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 function downloadShopifyCSV(){
-let csv="Variant ID,Variant Metafield: custom.wh_bin [single_line_text_field]\n";
-assignments.forEach(a=>{
-csv+=`${a.variantId},${a.bin||''}\n`;
-});
-downloadFile("SHOPIFY_BIN_UPLOAD.csv",csv);
+  let csv = "Variant ID,Variant Metafield: custom.wh_bin [single_line_text_field]\n";
+  assignments.forEach(a => {
+    if(a.variantId && a.bin){
+      csv += `${csvEscape(a.variantId)},${csvEscape(a.bin)}\n`;
+    }
+  });
+  downloadFile(sessionBaseName() + "_SHOPIFY.csv", csv);
 }
-
+function downloadWorkingCSV(){
+  let csv = "mode,zone,bay,shelf,bin_position,wh_bin,variant_id,barcode,sku,title\n";
+  assignments.forEach(a => {
+    csv += [
+      csvEscape(a.mode),
+      csvEscape(a.zone),
+      csvEscape(a.bay),
+      csvEscape(a.shelf),
+      csvEscape(a.binPos),
+      csvEscape(a.bin),
+      csvEscape(a.variantId),
+      csvEscape(a.barcode),
+      csvEscape(a.sku),
+      csvEscape(a.title)
+    ].join(',') + "\n";
+  });
+  downloadFile(sessionBaseName() + "_WORKING.csv", csv);
+}
 function downloadLabelCSV(){
-let csv="label_type,line1,line2,barcode\n";
-assignments.forEach(a=>{
-if(a.bin) csv+=`BIN,${a.bin},WH,${a.bin}\n`;
-csv+=`ITEM,${csvEscape(a.title)},SKU: ${a.sku},${a.barcode}\n`;
-});
-downloadFile("LABEL_PRINT.csv",csv);
+  let csv = "label_type,line1,line2,barcode\n";
+  assignments.forEach(a => {
+    if(a.bin) csv += `BIN,${csvEscape(a.bin)},WH,${csvEscape(a.bin)}\n`;
+    csv += `ITEM,${csvEscape(a.title)},${csvEscape('SKU: ' + (a.sku || ''))},${csvEscape(a.barcode)}\n`;
+  });
+  downloadFile(sessionBaseName() + "_LABELS.csv", csv);
+}
+function saveState(){
+  const state = {
+    mode,
+    assignments,
+    history,
+    nextRowId,
+    currentZone,
+    currentBay,
+    currentShelf,
+    currentBinNum,
+    zoneInput: document.getElementById('zoneInput').value,
+    bayInput: document.getElementById('bayInput').value,
+    quickBinInput: document.getElementById('quickBinInput').value,
+    keepSameBin: document.getElementById('keepSameBin').checked
+  };
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+  setDraftStatus('Draft saved');
+}
+function restoreState(){
+  const raw = localStorage.getItem(STATE_KEY);
+  if(!raw){
+    updateDisplays();
+    render();
+    setDraftStatus('No saved draft');
+    return;
+  }
+  try{
+    const s = JSON.parse(raw);
+    mode = s.mode === 'quick' ? 'quick' : 'bulk';
+    assignments = Array.isArray(s.assignments) ? s.assignments : [];
+    history = Array.isArray(s.history) ? s.history : [];
+    nextRowId = Number(s.nextRowId || 1);
+    currentZone = s.currentZone || '';
+    currentBay = Number(s.currentBay || 1);
+    currentShelf = Number(s.currentShelf || 1);
+    currentBinNum = Number(s.currentBinNum || 1);
+
+    document.getElementById('zoneInput').value = s.zoneInput || currentZone || '';
+    document.getElementById('bayInput').value = s.bayInput || pad2(currentBay);
+    document.getElementById('quickBinInput').value = s.quickBinInput || '';
+    document.getElementById('keepSameBin').checked = s.keepSameBin !== false;
+
+    setMode(mode);
+    render();
+    setDraftStatus('Draft restored');
+  }catch{
+    updateDisplays();
+    render();
+    setDraftStatus('Draft restore failed');
+  }
 }
 
-function downloadRawCSV(){
-let csv="variant_id,barcode,sku,title,wh_bin\n";
-assignments.forEach(a=>{
-csv+=`${a.variantId},${a.barcode},${a.sku},${csvEscape(a.title)},${a.bin}\n`;
+document.getElementById('assignScan').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    addAssignment();
+  }
 });
-downloadFile("ASSIGNMENT_RAW.csv",csv);
-}
+document.getElementById('quickBinInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    document.getElementById('assignScan').focus();
+  }
+});
+document.getElementById('zoneInput').addEventListener('input', () => { updateDisplays(); saveState(); });
+document.getElementById('bayInput').addEventListener('input', () => { updateDisplays(); saveState(); });
+document.getElementById('quickBinInput').addEventListener('input', () => { updateDisplays(); saveState(); });
+document.getElementById('keepSameBin').addEventListener('change', saveState);
+
+loadCSV();
+setMode('bulk');
+updateDisplays();
 </script>
 
 </body>
